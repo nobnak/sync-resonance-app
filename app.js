@@ -90,7 +90,7 @@
       speed: 1.0,
       spread: 10,
       noise: 4,
-      radius: 2.2,
+      radius: 1.6,
       title: '百景・大同期 (100匹)',
       icon: '🌌',
       desc: '大規模引力結合 (10x10)：格子全体をうねる壮大な光と音の波面伝播'
@@ -101,7 +101,7 @@
       speed: 1.15,
       spread: 6,
       noise: 5,
-      radius: 1.8,
+      radius: 1.2,
       title: 'カエル大合唱 (36匹)',
       icon: '🐸',
       desc: '大規模逆相排他：チェッカーボード状の千鳥発火と重層ポリリズム'
@@ -115,7 +115,7 @@
       radius: 1.2,
       title: 'カエル輪唱 (4匹)',
       icon: '🐸',
-      desc: '四位相分散：ガムラン調のインターロッキング・ポリリズム'
+      desc: '対角ペアの2相千鳥：2グループが交互に鳴き交わすミニマル・ポリリズム'
     },
     'reich': {
       k: 0.12,
@@ -176,6 +176,7 @@
     sim.setNoiseLevel(noise / 100);
     sim.setRadiusMultiplier(radius);
     audio.setVoiceScale(p.n);
+    sim.perturbAll();
 
     // バッジに個体数と格子次元 (Cols x Rows) を明示
     valN.textContent = `${p.n} (${sim.gridCols}×${sim.gridRows})`;
