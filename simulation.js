@@ -15,6 +15,8 @@ class SimulationEngine {
     this.baseSpeed = 1.0;     // テンポ速度
     this.baseOmega = 2.4;     // 基本角速度 (rad/s, 約0.38Hz 〜 2.6秒周期)
     this.spatialRadius = 0.45;// 相互作用の空間的有効半径
+    this.freqSpread = 0.08;   // 固有角速度のばらつき幅 (0.0:均一 〜 0.30:強い個性)
+    this.noiseLevel = 0.04;   // 毎フレームの生体ランダムゆらぎ (0.0:静的 〜 0.20:激しい混沌)
 
     // 格子情報
     this.gridCols = 6;
@@ -132,8 +134,9 @@ class SimulationEngine {
     this.agents = [];
     for (let i = 0; i < this.agentCount; i++) {
       const phase = Math.random() * Math.PI * 2;
-      const freqVariance = (Math.random() - 0.5) * 0.08;
-      const omega = this.baseOmega * (1.0 + freqVariance);
+      // 各個体の不変の個性正規値 [-1.0, +1.0]
+      const freqNorm = (Math.random() - 0.5) * 2.0;
+      const omega = this.baseOmega * (1.0 + freqNorm * this.freqSpread);
 
       this.agents.push({
         id: i,
@@ -142,6 +145,7 @@ class SimulationEngine {
         row: 0,
         col: 0,
         phase: phase,
+        freqNorm: freqNorm,
         omega: omega,
         flashTimer: 0.0,
         pitchIndex: i,
@@ -168,6 +172,17 @@ class SimulationEngine {
     this.baseSpeed = speed;
   }
 
+  setFreqSpread(spread) {
+    this.freqSpread = Math.max(0.0, Math.min(0.5, spread));
+    this.agents.forEach(a => {
+      a.omega = this.baseOmega * (1.0 + a.freqNorm * this.freqSpread);
+    });
+  }
+
+  setNoiseLevel(noise) {
+    this.noiseLevel = Math.max(0.0, Math.min(0.5, noise));
+  }
+
   /**
    * 物理・位相ステップの更新 (dt: 秒)
    */
@@ -178,9 +193,8 @@ class SimulationEngine {
     this.framePulseCount = 0;
     const targetType = this.k >= 0 ? Math.min(1.0, 0.5 + this.k * 0.5) : Math.max(0.0, 0.5 + this.k * 0.5);
 
-    // 論理画面サイズ基準で有効半径の2乗を算出（高速化）
-    const diag = Math.hypot(this.width, this.height);
-    const rRef = this.spatialRadius * diag * 0.45;
+    // 格子間隔に基づく局所有効半径の算出（格子間をリレー式に伝播する波面を生成）
+    const rRef = Math.max(this.cellSpacing * 1.85, 45);
     const invR2 = 1.0 / (rRef * rRef);
 
     // 1. 各格子点に対する結合相互作用の計算 (O(N^2) 高速ループ)
@@ -211,9 +225,13 @@ class SimulationEngine {
 
     // 2. 位相の前進とパルストリガー判定
     const maxRipples = n > 64 ? 16 : 28;
+    const noiseAmp = this.noiseLevel * 4.5;
+
     for (let i = 0; i < n; i++) {
       const a = this.agents[i];
-      a.phase += dPhases[i] * dt;
+      // 生体ゆらぎ（Langevinノイズ項）：固定ロックの硬直を打破し息づくような生きた揺らぎを維持
+      const noise = noiseAmp > 0 ? (Math.random() - 0.5) * noiseAmp : 0;
+      a.phase += (dPhases[i] + noise) * dt;
       a.typeWeight += (targetType - a.typeWeight) * 0.08;
 
       if (a.phase >= Math.PI * 2) {

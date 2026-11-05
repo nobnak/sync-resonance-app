@@ -25,6 +25,10 @@
   const valN = document.getElementById('val-n');
   const sliderSpeed = document.getElementById('slider-speed');
   const valSpeed = document.getElementById('val-speed');
+  const sliderSpread = document.getElementById('slider-spread');
+  const valSpread = document.getElementById('val-spread');
+  const sliderNoise = document.getElementById('slider-noise');
+  const valNoise = document.getElementById('val-noise');
 
   const btnPerturb = document.getElementById('btn-perturb');
   const btnMute = document.getElementById('btn-mute');
@@ -71,6 +75,8 @@
       k: 0.85,
       n: 36,
       speed: 1.0,
+      spread: 8,
+      noise: 4,
       title: 'ホタルの群生 (36匹)',
       icon: '✨',
       desc: '引力結合 (6x6)：カオスから壮大な斉唱コードへの収斂'
@@ -79,6 +85,8 @@
       k: 0.9,
       n: 100,
       speed: 1.0,
+      spread: 10,
+      noise: 4,
       title: '百景・大同期 (100匹)',
       icon: '🌌',
       desc: '大規模引力結合 (10x10)：格子全体をうねる壮大な光と音の波面伝播'
@@ -87,6 +95,8 @@
       k: -1.15,
       n: 36,
       speed: 1.15,
+      spread: 6,
+      noise: 5,
       title: 'カエル大合唱 (36匹)',
       icon: '🐸',
       desc: '大規模逆相排他：チェッカーボード状の千鳥発火と重層ポリリズム'
@@ -95,6 +105,8 @@
       k: -1.05,
       n: 4,
       speed: 1.25,
+      spread: 4,
+      noise: 2,
       title: 'カエル輪唱 (4匹)',
       icon: '🐸',
       desc: '四位相分散：ガムラン調のインターロッキング・ポリリズム'
@@ -103,6 +115,8 @@
       k: 0.12,
       n: 9,
       speed: 1.3,
+      spread: 14,
+      noise: 1,
       title: 'フェージング (Reich 9点)',
       icon: '⏱️',
       desc: '極小結合 (K ≒ 0.1)：微細な速度差によるミニマル音楽的フェーズシフト'
@@ -111,6 +125,8 @@
       k: 0.0,
       n: 64,
       speed: 1.0,
+      spread: 18,
+      noise: 8,
       title: 'カオス群生 (64点)',
       icon: '🌀',
       desc: '結合なし (K = 0)：それぞれが独立して鳴り続ける無秩序なアンビエント'
@@ -129,6 +145,13 @@
     sliderSpeed.value = p.speed;
     valSpeed.textContent = p.speed.toFixed(1) + 'x';
 
+    const spread = p.spread !== undefined ? p.spread : 8;
+    const noise = p.noise !== undefined ? p.noise : 4;
+    sliderSpread.value = spread;
+    valSpread.textContent = `±${spread}%`;
+    sliderNoise.value = noise;
+    valNoise.textContent = `${noise}%`;
+
     modeTitle.textContent = p.title;
     modeIcon.textContent = p.icon;
     modeDesc.textContent = p.desc;
@@ -137,6 +160,8 @@
     sim.setCoupling(p.k);
     sim.setAgentCount(p.n);
     sim.setSpeed(p.speed);
+    sim.setFreqSpread(spread / 100);
+    sim.setNoiseLevel(noise / 100);
     audio.setVoiceScale(p.n);
 
     // バッジに個体数と格子次元 (Cols x Rows) を明示
@@ -211,6 +236,20 @@
     const speed = parseFloat(e.target.value);
     valSpeed.textContent = speed.toFixed(1) + 'x';
     sim.setSpeed(speed);
+  });
+
+  sliderSpread.addEventListener('input', (e) => {
+    const val = parseInt(e.target.value, 10);
+    valSpread.textContent = `±${val}%`;
+    sim.setFreqSpread(val / 100);
+    presetButtons.forEach(b => b.classList.remove('active'));
+  });
+
+  sliderNoise.addEventListener('input', (e) => {
+    const val = parseInt(e.target.value, 10);
+    valNoise.textContent = `${val}%`;
+    sim.setNoiseLevel(val / 100);
+    presetButtons.forEach(b => b.classList.remove('active'));
   });
 
   // 外乱ボタン
