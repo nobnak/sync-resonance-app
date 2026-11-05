@@ -132,9 +132,9 @@ class Renderer {
         ctx.moveTo(a1.x, a1.y);
         ctx.lineTo(agents[i + 1].x, agents[i + 1].y);
       }
-      // 下隣のノード
+      // 下隣のノード (同列の真下のみ)
       const downIdx = i + cols;
-      if (downIdx < n) {
+      if (downIdx < n && agents[downIdx].col === a1.col) {
         ctx.moveTo(a1.x, a1.y);
         ctx.lineTo(agents[downIdx].x, agents[downIdx].y);
       }
@@ -163,7 +163,7 @@ class Renderer {
         neighbors.push(agents[i + 1]);
       }
       const downIdx = i + cols;
-      if (downIdx < n) {
+      if (downIdx < n && agents[downIdx].col === a1.col) {
         neighbors.push(agents[downIdx]);
       }
 
@@ -202,7 +202,7 @@ class Renderer {
         neighbors.push(agents[i + 1]);
       }
       const downIdx = i + cols;
-      if (downIdx < n) {
+      if (downIdx < n && agents[downIdx].col === a1.col) {
         neighbors.push(agents[downIdx]);
       }
 

@@ -51,23 +51,36 @@ class SimulationEngine {
   }
 
   /**
-   * 個体数 N と画面アスペクト比に応じた最適な格子 (Cols x Rows) を算出
+   * 個体数 N と画面アスペクト比に応じた最適な完全格子因数分解 (Cols x Rows == N) を算出
    */
   calculateGridLayout() {
     const w = this.width;
     const h = this.height;
     const n = this.agentCount;
-    const aspect = w / h;
+    const aspect = Math.max(0.2, w / h);
 
-    let cols = Math.round(Math.sqrt(n * aspect));
-    cols = Math.max(1, Math.min(n, cols));
-    let rows = Math.ceil(n / cols);
+    // 1. n の因数分解 (c * r == n) で、c/r が画面比率に最も近いペアを探索
+    let bestCols = 1;
+    let bestRows = n;
+    let bestScore = Infinity;
 
-    return { cols, rows };
+    for (let c = 1; c <= n; c++) {
+      if (n % c === 0) {
+        const r = n / c;
+        const currentAspect = c / r;
+        const score = Math.abs(Math.log(currentAspect) - Math.log(aspect));
+        if (score < bestScore) {
+          bestScore = score;
+          bestCols = c;
+          bestRows = r;
+        }
+      }
+    }
+    return { cols: bestCols, rows: bestRows };
   }
 
   /**
-   * 格子座標の計算と固定配置（完全中央配置・正方セル）
+   * 格子座標の計算と固定配置（完全中央配置・正方セル・厳密格子）
    */
   updateAgentPositions() {
     const w = this.width;
@@ -106,15 +119,10 @@ class SimulationEngine {
       const r = Math.floor(i / cols);
       const c = i % cols;
 
-      // 最終行のアイテム数が満たない場合、その行を水平中央揃え
-      const itemsInRow = Math.min(cols, n - r * cols);
-      const rowStartX = cols > 1
-        ? startX + (cols - itemsInRow) * spacing * 0.5
-        : w * 0.5;
-
       a.row = r;
       a.col = c;
-      a.x = cols > 1 ? rowStartX + c * spacing : w * 0.5;
+      // 厳密に列 c・行 r の格子座標へ配置（行ごとのオフセットは入れない）
+      a.x = cols > 1 ? startX + c * spacing : w * 0.5;
       a.y = rows > 1 ? startY + r * spacing : h * 0.5;
       a.pan = (a.x / w) * 2 - 1; // 空間定位（[-1, +1] のステレオステージング）
     }

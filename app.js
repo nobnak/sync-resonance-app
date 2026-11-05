@@ -45,6 +45,26 @@
     audio.triggerPulse(agent, intensity);
   };
 
+  // 厳密な2D格子を形成可能な個体数リスト（端数・不揃いノードの発生を排除）
+  const GRID_SIZES = [
+    2, 4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 24, 25, 28, 30, 32, 35, 36, 40,
+    42, 48, 50, 54, 56, 60, 64, 70, 72, 80, 84, 90, 96, 100, 108, 120, 128,
+    144, 160, 180, 196, 200, 216, 225, 240, 256
+  ];
+
+  function snapToGridSize(val) {
+    let closest = GRID_SIZES[0];
+    let minDiff = Math.abs(val - closest);
+    for (let i = 1; i < GRID_SIZES.length; i++) {
+      const diff = Math.abs(val - GRID_SIZES[i]);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = GRID_SIZES[i];
+      }
+    }
+    return closest;
+  }
+
   // プリセット定義
   const PRESETS = {
     'firefly-swarm': {
@@ -119,6 +139,9 @@
     sim.setSpeed(p.speed);
     audio.setVoiceScale(p.n);
 
+    // バッジに個体数と格子次元 (Cols x Rows) を明示
+    valN.textContent = `${p.n} (${sim.gridCols}×${sim.gridRows})`;
+
     // ボタンのアクティブ状態
     presetButtons.forEach(btn => {
       btn.classList.toggle('active', btn.dataset.preset === presetKey);
@@ -175,9 +198,11 @@
   });
 
   sliderN.addEventListener('input', (e) => {
-    const n = parseInt(e.target.value, 10);
-    valN.textContent = n;
+    const rawN = parseInt(e.target.value, 10);
+    const n = snapToGridSize(rawN);
+    sliderN.value = n;
     sim.setAgentCount(n);
+    valN.textContent = `${n} (${sim.gridCols}×${sim.gridRows})`;
     audio.setVoiceScale(n);
     presetButtons.forEach(b => b.classList.remove('active'));
   });
