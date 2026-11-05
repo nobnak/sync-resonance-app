@@ -191,6 +191,10 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   transition: opacity 0.3s ease;
 }
 
@@ -298,14 +302,9 @@ html, body {
 
 /* プリセットボタン帯 */
 .presets-strip {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: none;
-}
-.presets-strip::-webkit-scrollbar {
-  display: none;
 }
 
 .preset-btn {
@@ -315,10 +314,14 @@ html, body {
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 500;
-  padding: 6px 10px;
+  padding: 7px 6px;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .preset-btn:hover {
@@ -541,7 +544,20 @@ input[type="range"]::-webkit-slider-thumb:hover {
     top: 10px;
     padding: 12px;
   }
+  .presets-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
   .overlay-card {
     padding: 24px 20px;
+  }
+}
+
+@media (max-width: 380px) {
+  .presets-strip {
+    grid-template-columns: 1fr;
+  }
+  .preset-btn {
+    font-size: 10px;
+    padding: 6px 4px;
   }
 }
