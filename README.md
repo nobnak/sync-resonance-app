@@ -3,6 +3,9 @@
 > **自然界の振動子が紡ぐ「引き込み」と「排他」の音響数理アート**  
 > ホタルの同相同期（引力 $K > 0$）によるカタルシスと、カエルの逆相排他（斥力 $K < 0$）によるポリリズムを視覚的・聴覚的に体験できる Web アプリケーションです。
 
+🎮 **Web アプリを体験する（ブラウザでそのまま動作します）**  
+👉 **[https://nobnak.github.io/sync-resonance-app/](https://nobnak.github.io/sync-resonance-app/)**
+
 ---
 
 ## 🌟 特徴
@@ -19,31 +22,6 @@
   - **結合強度 $K$ の連続変化**：斥力（-1.5）〜 カオス（0）〜 引力（+1.5）をシームレスに行き来可能。
   - **外乱（摂動）の注入**：画面をクリックすると水面の波紋のように衝撃波が広がり、位相が乱れて再び秩序へ向かう「緊張と弛緩」のサイクルを観察できます。
   - **個体のドラッグ**：個体を掴んで移動させ、局所的なクラスタリングや音響配置を変えることができます。
-
----
-
-## 🚀 GitHub Pages への公開手順（3ステップ）
-
-このプロジェクトは完全な静的 Web サイトです。以下の手順ですぐに公開できます。
-
-### 1. GitHub 上で新しいリポジトリを作成
-GitHub（github.com）で任意の名前（例: `sync-resonance-app`）のリポジトリを新規作成します。
-
-### 2. ローカルからプッシュ
-```bash
-git init
-git add .
-git commit -m "feat: initial commit of SynchroEcho"
-git branch -M main
-git remote add origin https://github.com/<あなたのユーザー名>/<リポジトリ名>.git
-git push -u origin main
-```
-
-### 3. GitHub Pages を有効化
-1. リポジトリの **Settings**（設定）タブを開きます。
-2. 左メニューの **Pages** を選択します。
-3. **Build and deployment** の Source で **Deploy from a branch** を選択し、Branch を **`main` / `/(root)`** に設定して **Save** を押します。
-4. 数分待つと、`https://<あなたのユーザー名>.github.io/<リポジトリ名>/` で世界中に公開されます！
 
 ---
 
