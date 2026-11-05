@@ -1,6 +1,6 @@
 /**
  * SynchroEcho Visual Renderer
- * High-performance 2D Canvas rendering with glow, water ripples, caustics, and phase visualization.
+ * High-performance 2D Canvas rendering on Spatial Lattice/Grid with glow, water ripples, and Kuramoto phase visualization.
  */
 
 class Renderer {
@@ -22,16 +22,21 @@ class Renderer {
     this.ctx.scale(dpr, dpr);
     this.width = rect.width;
     this.height = rect.height;
+
+    // 格子位置を画面サイズに追従
+    if (this.sim && this.sim.updateAgentPositions) {
+      this.sim.updateAgentPositions();
+    }
   }
 
   initDust() {
     this.ambientDust = [];
-    for (let i = 0; i < 45; i++) {
+    for (let i = 0; i < 40; i++) {
       this.ambientDust.push({
         x: Math.random() * (this.width || 800),
         y: Math.random() * (this.height || 600),
         r: Math.random() * 1.5 + 0.5,
-        alpha: Math.random() * 0.3 + 0.1,
+        alpha: Math.random() * 0.25 + 0.08,
         speedX: (Math.random() - 0.5) * 0.2,
         speedY: (Math.random() - 0.5) * 0.2
       });
@@ -45,8 +50,6 @@ class Renderer {
 
     // 1. 背景の描画（夜の沼地・森のグラデーション）
     const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, Math.hypot(w, h) / 1.5);
-    // Kの値に応じて背景のトーンをわずかにシフト
-    // K > 0 (ホタル): 暖かい漆黒とアンバー、K < 0 (カエル): 深いアクア・ティールと夜の湿原
     if (this.sim.k >= 0) {
       bgGrad.addColorStop(0, '#0c121e');
       bgGrad.addColorStop(0.7, '#070a12');
@@ -61,7 +64,6 @@ class Renderer {
 
     // 2. 完全同期時の全画面フラッシュ（ホタルのカタルシス呼吸）
     if (this.sim.k > 0.3 && this.sim.orderParameter > 0.75) {
-      // 平均位相が0付近（発火タイミング）のとき、背景が息を吸うように輝く
       const syncFlash = Math.max(0, Math.cos(this.sim.meanPhase)) * (this.sim.orderParameter - 0.6) * 1.8;
       if (syncFlash > 0.05) {
         ctx.fillStyle = `rgba(245, 176, 65, ${Math.min(0.22, syncFlash * 0.22)})`;
@@ -81,58 +83,119 @@ class Renderer {
     }
     ctx.globalAlpha = 1.0;
 
-    // 4. カエルモード時の相互排他リンク（斥力場の可視化）
-    if (this.sim.k < -0.2) {
-      this.renderRepulsionLinks(ctx);
+    // 4. 格子ネットワーク構造（格子線の描画）
+    this.renderLatticeMesh(ctx);
+
+    // 5. 結合状態のリンク線
+    if (this.sim.k < -0.15) {
+      this.renderRepulsionLinks(ctx); // カエル反同期リンク
+    } else if (this.sim.k > 0.25) {
+      this.renderAttractionLinks(ctx); // ホタル同期調和リンク
     }
 
-    // 5. 波紋・リップルの描画
+    // 6. 水面波紋・光輪リップル
     this.renderRipples(ctx);
 
-    // 6. 各エージェント（ホタル / カエル）の描画
+    // 7. 各格子ノード（ホタル / カエル）の描画
     for (const a of this.sim.agents) {
       this.renderAgent(ctx, a);
-    }
-
-    // 7. ドラッグ中のターゲット強調
-    if (this.sim.draggedAgent) {
-      const da = this.sim.draggedAgent;
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.arc(da.x, da.y, 28, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
     }
   }
 
   /**
-   * カエル同士の斥力リンク（近い個体同士が位相を押し合っている状態）
+   * 格子ノード同士を結ぶ基本トポロジー線の描画
+   */
+  renderLatticeMesh(ctx) {
+    const agents = this.sim.agents;
+    const n = agents.length;
+    if (n <= 1) return;
+
+    ctx.save();
+    const isFirefly = this.sim.k >= 0;
+    ctx.strokeStyle = isFirefly ? 'rgba(245, 176, 65, 0.06)' : 'rgba(46, 204, 113, 0.06)';
+    ctx.lineWidth = 1;
+
+    for (let i = 0; i < n; i++) {
+      const a1 = agents[i];
+      for (let j = i + 1; j < n; j++) {
+        const a2 = agents[j];
+        const dr = Math.abs(a1.row - a2.row);
+        const dc = Math.abs(a1.col - a2.col);
+        const isNeighbor = (dr + dc === 1) || (n <= 4 && dr <= 1 && dc <= 1);
+
+        if (isNeighbor) {
+          ctx.beginPath();
+          ctx.moveTo(a1.x, a1.y);
+          ctx.lineTo(a2.x, a2.y);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  /**
+   * ホタル同期時の同相リンク（近傍ノード同士の位相が揃ったときに輝く）
+   */
+  renderAttractionLinks(ctx) {
+    const agents = this.sim.agents;
+    const n = agents.length;
+    if (n <= 1) return;
+
+    ctx.save();
+    for (let i = 0; i < n; i++) {
+      const a1 = agents[i];
+      for (let j = i + 1; j < n; j++) {
+        const a2 = agents[j];
+        const dr = Math.abs(a1.row - a2.row);
+        const dc = Math.abs(a1.col - a2.col);
+        const isNeighbor = (dr + dc === 1) || (n <= 4 && dr <= 1 && dc <= 1);
+
+        if (isNeighbor) {
+          const syncMetric = Math.max(0, Math.cos(a1.phase - a2.phase));
+          if (syncMetric > 0.65) {
+            const alpha = (syncMetric - 0.65) / 0.35;
+            ctx.strokeStyle = `rgba(245, 176, 65, ${alpha * 0.45})`;
+            ctx.lineWidth = 1 + alpha * 1.5;
+            ctx.beginPath();
+            ctx.moveTo(a1.x, a1.y);
+            ctx.lineTo(a2.x, a2.y);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  /**
+   * カエル反同期時の排他リンク（逆相で美しいグリーン、同相衝突時は赤）
    */
   renderRepulsionLinks(ctx) {
     const agents = this.sim.agents;
     const n = agents.length;
-    const linkDistThreshold = 180;
+    if (n <= 1) return;
 
     ctx.save();
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.5;
     for (let i = 0; i < n; i++) {
+      const a1 = agents[i];
       for (let j = i + 1; j < n; j++) {
-        const a1 = agents[i];
         const a2 = agents[j];
-        const dist = Math.hypot(a1.x - a2.x, a1.y - a2.y);
-        if (dist < linkDistThreshold) {
-          // 位相差が π（反同期）に近いほど美しく整った緑のリンク、衝突中（位相差0）は赤みを帯びる
-          const phaseDiff = Math.abs(Math.sin((a1.phase - a2.phase) * 0.5)); // 1.0=完全反同期, 0.0=衝突
-          const alpha = (1.0 - dist / linkDistThreshold) * 0.35;
+        const dr = Math.abs(a1.row - a2.row);
+        const dc = Math.abs(a1.col - a2.col);
+        const isNeighbor = (dr + dc === 1) || (n <= 4 && dr <= 1 && dc <= 1);
 
-          if (phaseDiff > 0.8) {
-            ctx.strokeStyle = `rgba(46, 204, 113, ${alpha * 1.2})`; // 調和した反同期
+        if (isNeighbor) {
+          // 位相差 π (180°) で完全反同期 (1.0)
+          const phaseDiff = Math.abs(Math.sin((a1.phase - a2.phase) * 0.5));
+          if (phaseDiff > 0.75) {
+            const alpha = (phaseDiff - 0.75) / 0.25;
+            ctx.strokeStyle = `rgba(46, 204, 113, ${0.15 + alpha * 0.45})`;
           } else {
-            ctx.strokeStyle = `rgba(239, 68, 68, ${alpha * 0.8})`; // 衝突中の緊張
+            const conflict = (0.75 - phaseDiff) / 0.75;
+            ctx.strokeStyle = `rgba(239, 68, 68, ${0.1 + conflict * 0.5})`;
           }
-
           ctx.beginPath();
           ctx.moveTo(a1.x, a1.y);
           ctx.lineTo(a2.x, a2.y);
@@ -150,15 +213,12 @@ class Renderer {
     ctx.save();
     for (const r of this.sim.ripples) {
       if (r.isShockwave) {
-        // 外乱ショックウェーブ（シアン色の鋭い衝撃波）
         ctx.strokeStyle = `rgba(56, 189, 248, ${r.opacity * 0.8})`;
         ctx.lineWidth = 2.5;
       } else if (r.type >= 0.5) {
-        // ホタルの光輪（ソフトな黄金の拡散）
         ctx.strokeStyle = `rgba(245, 176, 65, ${r.opacity * 0.45})`;
         ctx.lineWidth = 1.5;
       } else {
-        // カエルの水面波紋（エメラルドの同心円）
         ctx.strokeStyle = `rgba(46, 204, 113, ${r.opacity * 0.6})`;
         ctx.lineWidth = 2.0;
       }
@@ -171,41 +231,40 @@ class Renderer {
   }
 
   /**
-   * 個体エージェントの描画
+   * 個体エージェントの描画（固定ノード）
    */
   renderAgent(ctx, a) {
     const type = a.typeWeight; // 0.0(カエル) 〜 1.0(ホタル)
     const flash = a.flashTimer; // 1.0 -> 0.0
+    const radius = 15;
 
-    // 位相リング（発火までの蓄積を時計回りの弧で表示）
-    const radius = 14;
     ctx.save();
 
-    // 1. 位相インジケーター（各個体がどのタイミングにあるかを可視化）
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-    ctx.lineWidth = 2;
+    // 1. 固定台座リング（背景グリッド上のノード位置表示）
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.arc(a.x, a.y, radius, 0, Math.PI * 2);
     ctx.stroke();
 
-    // 位相の前進アーク
-    const ringColor = type >= 0.5 ? 'rgba(245, 176, 65, 0.5)' : 'rgba(46, 204, 113, 0.5)';
+    // 2. 位相の前進アーク（時計回りの進捗）
+    const ringColor = type >= 0.5 ? 'rgba(245, 176, 65, 0.65)' : 'rgba(46, 204, 113, 0.65)';
     ctx.strokeStyle = ringColor;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.arc(a.x, a.y, radius, -Math.PI / 2, -Math.PI / 2 + a.phase, false);
     ctx.stroke();
 
-    // 2. ホタルとしての描画（発光・ブルーム・残光）
+    // 3. ホタルとしての描画（発光・ブルーム・残光）
     if (type > 0.2) {
       const fireflyAlpha = type;
       ctx.save();
-      ctx.globalCompositeOperation = 'lighter'; // 加算合成で光を重ねる
+      ctx.globalCompositeOperation = 'lighter';
 
-      const glowRadius = 8 + flash * 36;
+      const glowRadius = 9 + flash * 38;
       const glowGrad = ctx.createRadialGradient(a.x, a.y, 1, a.x, a.y, glowRadius);
-      glowGrad.addColorStop(0, `rgba(255, 255, 230, ${fireflyAlpha * (0.8 + flash * 0.2)})`);
-      glowGrad.addColorStop(0.3, `rgba(245, 176, 65, ${fireflyAlpha * (0.6 * flash + 0.15)})`);
+      glowGrad.addColorStop(0, `rgba(255, 255, 230, ${fireflyAlpha * (0.85 + flash * 0.15)})`);
+      glowGrad.addColorStop(0.3, `rgba(245, 176, 65, ${fireflyAlpha * (0.6 * flash + 0.18)})`);
       glowGrad.addColorStop(1, 'rgba(245, 176, 65, 0)');
 
       ctx.fillStyle = glowGrad;
@@ -215,22 +274,22 @@ class Renderer {
       ctx.restore();
     }
 
-    // 3. カエルとしての描画（蓮の葉・水面上の実体感）
+    // 4. カエルとしての描画（蓮の葉・水面上の実体感）
     if (type < 0.8) {
       const frogAlpha = 1.0 - type;
       ctx.save();
       // 蓮の葉の台座
-      const padRadius = 9 + (1.0 - flash) * 2;
+      const padRadius = 10 + (1.0 - flash) * 2;
       ctx.fillStyle = `rgba(20, 60, 40, ${frogAlpha * 0.85})`;
       ctx.beginPath();
       ctx.arc(a.x, a.y, padRadius, 0, Math.PI * 2);
       ctx.fill();
 
-      // カエルの本体（鳴いた瞬間に明るく跳ねる）
-      const bodyRadius = 5 + flash * 3;
+      // カエルの本体
+      const bodyRadius = 5.5 + flash * 3;
       const bodyColor = flash > 0.1
         ? `rgba(74, 222, 128, ${frogAlpha})`
-        : `rgba(34, 197, 94, ${frogAlpha * 0.8})`;
+        : `rgba(34, 197, 94, ${frogAlpha * 0.85})`;
       ctx.fillStyle = bodyColor;
       ctx.beginPath();
       ctx.arc(a.x, a.y, bodyRadius, 0, Math.PI * 2);
@@ -247,8 +306,8 @@ class Renderer {
       ctx.restore();
     }
 
-    // 4. 音高ラベル（小文字でノート番号・音階を表示）
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    // 5. 音高ラベル（小文字でノート番号）
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
     ctx.font = '9px monospace';
     ctx.textAlign = 'center';
     ctx.fillText(`#${a.pitchIndex + 1}`, a.x, a.y + radius + 11);

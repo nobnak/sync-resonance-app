@@ -1,6 +1,6 @@
 /**
  * SynchroEcho Simulation Engine
- * Non-linear Coupled Oscillator Network (Kuramoto Model with Spatial Metric & Coupling Inversion)
+ * Non-linear Coupled Oscillator Network (Kuramoto Model on Spatial Lattice/Grid)
  */
 
 class SimulationEngine {
@@ -11,10 +11,14 @@ class SimulationEngine {
 
     // パラメータ
     this.k = 0.8;             // 結合強度 (-1.5: 強い斥力 〜 +1.5: 強い引力)
-    this.agentCount = 12;     // 個体数 (2〜32)
+    this.agentCount = 12;     // 個体数 (2〜36)
     this.baseSpeed = 1.0;     // テンポ速度
     this.baseOmega = 2.4;     // 基本角速度 (rad/s, 約0.38Hz 〜 2.6秒周期)
-    this.spatialRadius = 0.45;// 相互作用の空間的有効半径 (正規化幅基準)
+    this.spatialRadius = 0.45;// 相互作用の空間的有効半径
+
+    // 格子情報
+    this.gridCols = 4;
+    this.gridRows = 3;
 
     // コールバック
     this.onPulseCallback = null;
@@ -23,17 +27,93 @@ class SimulationEngine {
     this.orderParameter = 0.0;
     this.meanPhase = 0.0;
 
-    // ドラッグ操作中のエージェント
-    this.draggedAgent = null;
-
     this.initAgents();
+  }
+
+  /**
+   * 個体数 N と画面アスペクト比に応じた最適な格子 (Cols x Rows) を算出
+   */
+  calculateGridLayout() {
+    const width = this.canvas.width || 800;
+    const height = this.canvas.height || 600;
+    const n = this.agentCount;
+
+    let cols, rows;
+    if (n <= 3) {
+      cols = n;
+      rows = 1;
+    } else if (n === 4) {
+      cols = 2;
+      rows = 2;
+    } else if (n <= 6) {
+      cols = 3;
+      rows = 2;
+    } else if (n <= 9) {
+      cols = 3;
+      rows = 3;
+    } else if (n <= 12) {
+      cols = 4;
+      rows = 3;
+    } else if (n <= 16) {
+      cols = 4;
+      rows = 4;
+    } else if (n <= 20) {
+      cols = 5;
+      rows = 4;
+    } else if (n <= 25) {
+      cols = 5;
+      rows = 5;
+    } else {
+      cols = Math.ceil(Math.sqrt(n * (width / height)));
+      cols = Math.max(1, Math.min(n, cols));
+      rows = Math.ceil(n / cols);
+    }
+    return { cols, rows };
+  }
+
+  /**
+   * 格子座標の計算と固定配置（リサイズ時にも呼び出し）
+   */
+  updateAgentPositions() {
+    const width = this.canvas.width || 800;
+    const height = this.canvas.height || 600;
+    const n = this.agents.length;
+    if (n === 0) return;
+
+    const { cols, rows } = this.calculateGridLayout();
+    this.gridCols = cols;
+    this.gridRows = rows;
+
+    // HUD や余白を考慮した配置領域
+    const padX = Math.min(180, width * 0.16);
+    const padY = Math.min(140, height * 0.18);
+    const usableW = Math.max(100, width - padX * 2);
+    const usableH = Math.max(100, height - padY * 2);
+
+    const spacingX = cols > 1 ? usableW / (cols - 1) : 0;
+    const spacingY = rows > 1 ? usableH / (rows - 1) : 0;
+
+    for (let i = 0; i < n; i++) {
+      const a = this.agents[i];
+      const r = Math.floor(i / cols);
+      const c = i % cols;
+
+      // 最終行が余る場合のセンタリング調整
+      const itemsInRow = Math.min(cols, n - r * cols);
+      const rowStartX = cols > 1
+        ? padX + (cols - itemsInRow) * spacingX * 0.5
+        : width / 2;
+
+      a.row = r;
+      a.col = c;
+      a.x = cols > 1 ? rowStartX + c * spacingX : width / 2;
+      a.y = rows > 1 ? padY + r * spacingY : height / 2;
+      a.pan = (a.x / width) * 2 - 1; // 空間定位（固定ステレオステージング）
+    }
   }
 
   initAgents() {
     this.agents = [];
-    const width = this.canvas.width || 800;
-    const height = this.canvas.height || 600;
-
     for (let i = 0; i < this.agentCount; i++) {
       // 初期位相はランダムに均一分散
       const phase = Math.random() * Math.PI * 2;
@@ -42,26 +122,21 @@ class SimulationEngine {
       const freqVariance = (Math.random() - 0.5) * 0.08;
       const omega = this.baseOmega * (1.0 + freqVariance);
 
-      // 初期配置（画面内に均等〜ややランダムに分散）
-      const padding = 80;
-      const x = padding + Math.random() * (width - padding * 2);
-      const y = padding + Math.random() * (height - padding * 2);
-
       this.agents.push({
         id: i,
-        x: x,
-        y: y,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
+        x: 0,
+        y: 0,
+        row: 0,
+        col: 0,
         phase: phase,
         omega: omega,
         flashTimer: 0.0,
         pitchIndex: i,
-        pan: (x / width) * 2 - 1,
-        // typeWeight: 0.0(カエル) 〜 1.0(ホタル)
+        pan: 0,
         typeWeight: this.k >= 0 ? Math.min(1.0, 0.5 + this.k * 0.5) : Math.max(0.0, 0.5 + this.k * 0.5)
       });
     }
+    this.updateAgentPositions();
   }
 
   setAgentCount(count) {
@@ -72,7 +147,6 @@ class SimulationEngine {
 
   setCoupling(k) {
     this.k = k;
-    // typeWeight を更新
     const type = k >= 0 ? Math.min(1.0, 0.5 + k * 0.5) : Math.max(0.0, 0.5 + k * 0.5);
     this.agents.forEach(a => a.typeWeight = type);
   }
@@ -85,19 +159,20 @@ class SimulationEngine {
    * 物理・位相ステップの更新 (dt: 秒)
    */
   update(dt) {
-    const width = this.canvas.width || 800;
-    const height = this.canvas.height || 600;
     const n = this.agents.length;
     if (n === 0) return;
 
-    // typeWeightの動的追従
     const targetType = this.k >= 0 ? Math.min(1.0, 0.5 + this.k * 0.5) : Math.max(0.0, 0.5 + this.k * 0.5);
 
-    // 1. 各エージェントに対する結合相互作用の計算
-    // dθ_i/dt = ω_i + (K / N) * Σ_j W(d_ij) * sin(θ_j - θ_i)
-    const dPhases = new Float32Array(n);
+    // 格子間隔に基づく局所有効半径の算出
+    const width = this.canvas.width || 800;
+    const height = this.canvas.height || 600;
     const diag = Math.hypot(width, height);
     const rThreshold = this.spatialRadius * diag;
+
+    // 1. 各格子点に対する結合相互作用の計算
+    // dθ_i/dt = ω_i + (K / N) * Σ_j W(d_ij) * sin(θ_j - θ_i)
+    const dPhases = new Float32Array(n);
 
     for (let i = 0; i < n; i++) {
       const a1 = this.agents[i];
@@ -109,73 +184,51 @@ class SimulationEngine {
         const a2 = this.agents[j];
         const dist = Math.hypot(a1.x - a2.x, a1.y - a2.y);
 
-        // 距離による減衰関数: 1 / (1 + (d / R)^2)
-        const normalizedDist = dist / (rThreshold * 0.5);
+        // 格子上の距離減衰カーネル: 1 / (1 + (d / R)^2)
+        const normalizedDist = dist / (rThreshold * 0.45);
         const spatialWeight = 1.0 / (1.0 + normalizedDist * normalizedDist);
 
-        // 蔵本相互作用（引力: K>0 で位相差を0へ, 斥力: K<0 で位相差を離す）
         couplingSum += spatialWeight * Math.sin(a2.phase - a1.phase);
         weightSum += spatialWeight;
       }
 
-      // 重み正規化（近傍の密度差による暴走防止）
       const effCoupling = weightSum > 0 ? (couplingSum / weightSum) : 0;
-      dPhases[i] = a1.omega * this.baseSpeed + this.k * 1.5 * effCoupling;
+      dPhases[i] = a1.omega * this.baseSpeed + this.k * 1.6 * effCoupling;
     }
 
-    // 2. 位相の前進とパルストリガー判定
+    // 2. 位相の前進とパルストリガー判定（位置は格子上に固定）
     for (let i = 0; i < n; i++) {
       const a = this.agents[i];
-      const prevPhase = a.phase;
       a.phase += dPhases[i] * dt;
-      a.typeWeight += (targetType - a.typeWeight) * 0.08; // スムーズな遷移
+      a.typeWeight += (targetType - a.typeWeight) * 0.08;
 
-      // 周期 2π の境界跨ぎを検出（発音・発光トリガー）
+      // 周期 2π 跨ぎで発声・発光パルスを発火
       if (a.phase >= Math.PI * 2) {
         a.phase = a.phase % (Math.PI * 2);
         a.flashTimer = 1.0;
 
-        // 音響トリガーコールバック
         if (this.onPulseCallback) {
           this.onPulseCallback(a, 1.0);
         }
 
-        // 視覚用リップルの発生（カエル斥力時は大きく、ホタル時は光輪）
+        // 格子点からの波紋発生
         this.ripples.push({
           x: a.x,
           y: a.y,
-          radius: 4,
-          maxRadius: this.k < 0 ? 120 : 70,
+          radius: 6,
+          maxRadius: this.k < 0 ? 110 : 75,
           opacity: 0.9,
           type: a.typeWeight
         });
       }
 
-      // 発光タイマーの減衰
+      // 発光タイマー減衰
       if (a.flashTimer > 0) {
         a.flashTimer = Math.max(0, a.flashTimer - dt * (a.typeWeight > 0.5 ? 1.5 : 4.0));
       }
-
-      // 位置の微小ドリフト（ホタルは浮遊、カエルは水面でほぼ静止）
-      if (a !== this.draggedAgent) {
-        const driftScale = a.typeWeight * 0.8 + 0.1;
-        a.x += a.vx * driftScale;
-        a.y += a.vy * driftScale;
-
-        // 画面端での跳ね返り
-        const pad = 40;
-        if (a.x < pad) { a.x = pad; a.vx = Math.abs(a.vx); }
-        if (a.x > width - pad) { a.x = width - pad; a.vx = -Math.abs(a.vx); }
-        if (a.y < pad) { a.y = pad; a.vy = Math.abs(a.vy); }
-        if (a.y > height - pad) { a.y = height - pad; a.vy = -Math.abs(a.vy); }
-
-        // パンニング値の更新
-        a.pan = (a.x / width) * 2 - 1;
-      }
     }
 
-    // 3. 蔵本秩序度 (Order Parameter) の計算
-    // r * e^(i*psi) = (1/N) * Σ e^(i*θ_j)
+    // 3. 蔵本秩序度 (Order Parameter)
     let sumCos = 0;
     let sumSin = 0;
     for (let i = 0; i < n; i++) {
@@ -197,9 +250,43 @@ class SimulationEngine {
   }
 
   /**
-   * 外乱（摂動）の注入
-   * @param {number} x - クリック位置 X
-   * @param {number} y - クリック位置 Y
+   * 格子ノードへの直接タップ刺激
+   */
+  perturbAgent(agent) {
+    if (!agent) return;
+    // 位相を大きく反転/シフトし、パルスを発火
+    agent.phase = (agent.phase + Math.PI) % (Math.PI * 2);
+    agent.flashTimer = 1.0;
+
+    if (this.onPulseCallback) {
+      this.onPulseCallback(agent, 1.2);
+    }
+
+    // 刺激点からの衝撃波紋
+    this.ripples.push({
+      x: agent.x,
+      y: agent.y,
+      radius: 8,
+      maxRadius: 220,
+      opacity: 1.0,
+      type: agent.typeWeight,
+      isShockwave: true
+    });
+
+    // 隣接格子ノードへの位相伝播・外乱
+    const shockRadius = 220;
+    this.agents.forEach(other => {
+      if (other === agent) return;
+      const d = Math.hypot(other.x - agent.x, other.y - agent.y);
+      if (d < shockRadius) {
+        const falloff = 1.0 - d / shockRadius;
+        other.phase = (other.phase + (Math.random() - 0.5) * Math.PI * 1.5 * falloff + Math.PI * 2) % (Math.PI * 2);
+      }
+    });
+  }
+
+  /**
+   * 任意座標のクリックによる波紋外乱
    */
   perturbAt(x, y) {
     const shockRadius = 240;
@@ -207,15 +294,10 @@ class SimulationEngine {
       const dist = Math.hypot(a.x - x, a.y - y);
       if (dist < shockRadius) {
         const power = (1.0 - dist / shockRadius);
-        // 位相を大きくランダムにシフト（同期の崩壊）
         a.phase = (a.phase + (Math.random() - 0.5) * Math.PI * 2 * power + Math.PI * 2) % (Math.PI * 2);
-        // 位置もわずかに揺らす
-        a.vx += (Math.random() - 0.5) * 2.0 * power;
-        a.vy += (Math.random() - 0.5) * 2.0 * power;
       }
     });
 
-    // 画面に大きな波紋を追加
     this.ripples.push({
       x: x,
       y: y,
@@ -228,13 +310,11 @@ class SimulationEngine {
   }
 
   /**
-   * 全体外乱（突風・捕食者の接近など）
+   * 全体外乱（突風・一括リセット）
    */
   perturbAll() {
     this.agents.forEach(a => {
       a.phase = Math.random() * Math.PI * 2;
-      a.vx = (Math.random() - 0.5) * 3;
-      a.vy = (Math.random() - 0.5) * 3;
     });
 
     const w = this.canvas.width;
@@ -251,7 +331,7 @@ class SimulationEngine {
   }
 
   /**
-   * マウス・タッチ操作によるドラッグ開始
+   * クリック位置にある格子ノードを検索
    */
   findAgentAt(x, y, radius = 30) {
     for (let i = 0; i < this.agents.length; i++) {

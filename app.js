@@ -199,12 +199,7 @@
     infoDrawer.classList.add('hidden');
   });
 
-  // マウス・タッチ操作（キャンバスのインタラクション）
-  let isPointerDown = false;
-  let hasDragged = false;
-  let startX = 0;
-  let startY = 0;
-
+  // マウス・タッチ操作（キャンバスのインタラクション：ノード刺激または水面波紋）
   function getCanvasPos(e) {
     const rect = canvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -215,54 +210,22 @@
     };
   }
 
-  canvas.addEventListener('mousedown', onPointerStart);
-  canvas.addEventListener('mousemove', onPointerMove);
-  window.addEventListener('mouseup', onPointerEnd);
-
-  canvas.addEventListener('touchstart', onPointerStart, { passive: false });
-  canvas.addEventListener('touchmove', onPointerMove, { passive: false });
-  window.addEventListener('touchend', onPointerEnd);
-
-  function onPointerStart(e) {
+  function handlePointer(e) {
     const pos = getCanvasPos(e);
-    startX = pos.x;
-    startY = pos.y;
-    isPointerDown = true;
-    hasDragged = false;
-
-    // 個体をクリックしたかチェック
-    const hit = sim.findAgentAt(pos.x, pos.y, 32);
+    // 格子ノードをクリックした場合はノードを直接励起、余白は波紋ショックウェーブ
+    const hit = sim.findAgentAt(pos.x, pos.y, 28);
     if (hit) {
-      sim.draggedAgent = hit;
+      sim.perturbAgent(hit);
+    } else {
+      sim.perturbAt(pos.x, pos.y);
     }
-  }
-
-  function onPointerMove(e) {
-    if (!isPointerDown) return;
-    const pos = getCanvasPos(e);
-    if (Math.hypot(pos.x - startX, pos.y - startY) > 5) {
-      hasDragged = true;
-    }
-
-    if (sim.draggedAgent) {
-      sim.draggedAgent.x = pos.x;
-      sim.draggedAgent.y = pos.y;
-      sim.draggedAgent.pan = (pos.x / renderer.width) * 2 - 1;
+    if (e.cancelable && e.type === 'touchstart') {
       e.preventDefault();
     }
   }
 
-  function onPointerEnd(e) {
-    if (!isPointerDown) return;
-    isPointerDown = false;
-
-    if (!hasDragged && !sim.draggedAgent) {
-      // クリックによる外乱ショックウェーブ注入
-      sim.perturbAt(startX, startY);
-    }
-
-    sim.draggedAgent = null;
-  }
+  canvas.addEventListener('mousedown', handlePointer);
+  canvas.addEventListener('touchstart', handlePointer, { passive: false });
 
   // メインループ
   let lastTime = performance.now();
