@@ -29,7 +29,7 @@ class AudioEngine {
       880.00  // A5
     ];
 
-    // カエルの音階テーブル（パーカッシブな音程差によるポリリズム識別用）
+    // カエルの音階テーブル（マリンバ／ガムラン調ポリリズム識別用音階）
     this.frogScale = [
       164.81, // E3
       196.00, // G3
@@ -38,7 +38,10 @@ class AudioEngine {
       293.66, // D4
       329.63, // E4
       392.00, // G4
-      440.00  // A4
+      440.00, // A4
+      493.88, // B4
+      587.33, // D5
+      659.25  // E5
     ];
   }
 
@@ -191,55 +194,45 @@ class AudioEngine {
   }
 
   /**
-   * カエルの発音（ウッド・パーカッション／水滴／鳴き交わし系）
+   * カエルの発音（ウッド・マリンバ／カリンバ／共鳴木琴調）
+   * ホタルと同等の音圧・響きを持ちつつ、反同期ポリリズムが明確に聴き取れるクリアな打弦音
    */
   playFrogTone(agent, now, panner, intensity, weight) {
     const scale = this.frogScale;
     const baseFreq = scale[agent.pitchIndex % scale.length];
 
-    // ピッチスイープ（鳴き声特有の急峻なピッチ降下）
-    const osc = this.ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(baseFreq * 1.8, now);
-    osc.frequency.exponentialRampToValueAtTime(baseFreq, now + 0.04);
+    // 基音オシレーター（Sine: 澄んだ音程感）
+    const osc1 = this.ctx.createOscillator();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(baseFreq, now);
 
-    // バンドパスフィルター（共鳴胴のウッド感）
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(baseFreq * 1.2, now);
-    filter.Q.setValueAtTime(6.0, now);
+    // 共鳴倍音オシレーター（Triangle: ウッドマレット・マリンバの共鳴胴）
+    const osc2 = this.ctx.createOscillator();
+    osc2.type = 'triangle';
+    // わずかなピッチアタックで撥音の歯切れ良さを強調
+    osc2.frequency.setValueAtTime(baseFreq * 2.08, now);
+    osc2.frequency.exponentialRampToValueAtTime(baseFreq * 2.0, now + 0.03);
 
-    // アタック用クリックノイズ（撥音成分）
-    const clickBuffer = this.ctx.createBuffer(1, 256, this.ctx.sampleRate);
-    const data = clickBuffer.getChannelData(0);
-    for (let i = 0; i < 256; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / 30);
-    }
-    const clickSource = this.ctx.createBufferSource();
-    clickSource.buffer = clickBuffer;
-
-    // エンベロープ（タイトな減衰 90ms〜140ms）
+    // 音量エンベロープ（ホタルと同等の十分な音圧と自然な減衰）
     const gainNode = this.ctx.createGain();
-    const peakGain = 0.28 * intensity * (0.6 + weight * 0.4);
-    gainNode.gain.setValueAtTime(0.0001, now);
-    gainNode.gain.exponentialRampToValueAtTime(peakGain, now + 0.006);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+    const peakGain = 0.22 * intensity * (0.8 + weight * 0.2);
+    const decayDuration = 0.5 + (agent.pitchIndex % 3) * 0.15; // 0.5s 〜 0.8s の澄んだ余韻
 
-    // 接続
-    osc.connect(filter);
-    filter.connect(gainNode);
-    clickSource.connect(gainNode);
+    gainNode.gain.setValueAtTime(0.0001, now);
+    gainNode.gain.exponentialRampToValueAtTime(peakGain, now + 0.005);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + decayDuration);
+
+    // 接続（コンプレッサーとリバーブへホタル同様にフルルーティング）
+    osc1.connect(gainNode);
+    osc2.connect(gainNode);
     gainNode.connect(panner);
     panner.connect(this.compressor);
-    // カエルは直接音を際立たせ、リバーブは控えめに
-    const frogVerbSend = this.ctx.createGain();
-    frogVerbSend.gain.value = 0.2;
-    panner.connect(frogVerbSend);
-    frogVerbSend.connect(this.reverbNode);
+    panner.connect(this.reverbNode);
 
-    osc.start(now);
-    clickSource.start(now);
-    osc.stop(now + 0.15);
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + decayDuration + 0.05);
+    osc2.stop(now + decayDuration + 0.05);
   }
 }
 
