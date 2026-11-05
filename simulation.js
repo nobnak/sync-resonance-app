@@ -15,6 +15,7 @@ class SimulationEngine {
     this.baseSpeed = 1.0;     // テンポ速度
     this.baseOmega = 2.4;     // 基本角速度 (rad/s, 約0.38Hz 〜 2.6秒周期)
     this.spatialRadius = 0.45;// 相互作用の空間的有効半径
+    this.radiusMultiplier = 1.8; // 格子間隔の何倍まで結合が届くか (1.0x〜6.0x)
     this.freqSpread = 0.08;   // 固有角速度のばらつき幅 (0.0:均一 〜 0.30:強い個性)
     this.noiseLevel = 0.04;   // 毎フレームの生体ランダムゆらぎ (0.0:静的 〜 0.20:激しい混沌)
 
@@ -183,6 +184,10 @@ class SimulationEngine {
     this.noiseLevel = Math.max(0.0, Math.min(0.5, noise));
   }
 
+  setRadiusMultiplier(mult) {
+    this.radiusMultiplier = Math.max(0.5, Math.min(10.0, mult));
+  }
+
   /**
    * 物理・位相ステップの更新 (dt: 秒)
    */
@@ -193,8 +198,8 @@ class SimulationEngine {
     this.framePulseCount = 0;
     const targetType = this.k >= 0 ? Math.min(1.0, 0.5 + this.k * 0.5) : Math.max(0.0, 0.5 + this.k * 0.5);
 
-    // 格子間隔に基づく局所有効半径の算出（格子間をリレー式に伝播する波面を生成）
-    const rRef = Math.max(this.cellSpacing * 1.85, 45);
+    // 格子間隔と倍率に基づく局所有効半径の算出
+    const rRef = Math.max(this.cellSpacing * this.radiusMultiplier, 30);
     const invR2 = 1.0 / (rRef * rRef);
 
     // 1. 各格子点に対する結合相互作用の計算 (O(N^2) 高速ループ)
@@ -220,12 +225,13 @@ class SimulationEngine {
       }
 
       const effCoupling = weightSum > 0 ? (couplingSum / weightSum) : 0;
-      dPhases[i] = a1.omega * this.baseSpeed + this.k * 1.6 * effCoupling;
+      // 時間伸縮の不変性（テンポ変化で周波数と結合強度の比率が変わらないよう baseSpeed を全体に均等適用）
+      dPhases[i] = (a1.omega + this.k * 1.6 * effCoupling) * this.baseSpeed;
     }
 
     // 2. 位相の前進とパルストリガー判定
     const maxRipples = n > 64 ? 16 : 28;
-    const noiseAmp = this.noiseLevel * 4.5;
+    const noiseAmp = this.noiseLevel * 4.5 * this.baseSpeed;
 
     for (let i = 0; i < n; i++) {
       const a = this.agents[i];

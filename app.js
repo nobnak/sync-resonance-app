@@ -29,6 +29,8 @@
   const valSpread = document.getElementById('val-spread');
   const sliderNoise = document.getElementById('slider-noise');
   const valNoise = document.getElementById('val-noise');
+  const sliderRadius = document.getElementById('slider-radius');
+  const valRadius = document.getElementById('val-radius');
 
   const btnPerturb = document.getElementById('btn-perturb');
   const btnMute = document.getElementById('btn-mute');
@@ -77,6 +79,7 @@
       speed: 1.0,
       spread: 8,
       noise: 4,
+      radius: 1.8,
       title: 'ホタルの群生 (36匹)',
       icon: '✨',
       desc: '引力結合 (6x6)：カオスから壮大な斉唱コードへの収斂'
@@ -87,6 +90,7 @@
       speed: 1.0,
       spread: 10,
       noise: 4,
+      radius: 2.2,
       title: '百景・大同期 (100匹)',
       icon: '🌌',
       desc: '大規模引力結合 (10x10)：格子全体をうねる壮大な光と音の波面伝播'
@@ -97,6 +101,7 @@
       speed: 1.15,
       spread: 6,
       noise: 5,
+      radius: 1.8,
       title: 'カエル大合唱 (36匹)',
       icon: '🐸',
       desc: '大規模逆相排他：チェッカーボード状の千鳥発火と重層ポリリズム'
@@ -107,6 +112,7 @@
       speed: 1.25,
       spread: 4,
       noise: 2,
+      radius: 1.2,
       title: 'カエル輪唱 (4匹)',
       icon: '🐸',
       desc: '四位相分散：ガムラン調のインターロッキング・ポリリズム'
@@ -117,6 +123,7 @@
       speed: 1.3,
       spread: 14,
       noise: 1,
+      radius: 1.2,
       title: 'フェージング (Reich 9点)',
       icon: '⏱️',
       desc: '極小結合 (K ≒ 0.1)：微細な速度差によるミニマル音楽的フェーズシフト'
@@ -127,6 +134,7 @@
       speed: 1.0,
       spread: 18,
       noise: 8,
+      radius: 1.8,
       title: 'カオス群生 (64点)',
       icon: '🌀',
       desc: '結合なし (K = 0)：それぞれが独立して鳴り続ける無秩序なアンビエント'
@@ -147,10 +155,14 @@
 
     const spread = p.spread !== undefined ? p.spread : 8;
     const noise = p.noise !== undefined ? p.noise : 4;
+    const radius = p.radius !== undefined ? p.radius : 1.8;
+
     sliderSpread.value = spread;
     valSpread.textContent = `±${spread}%`;
     sliderNoise.value = noise;
     valNoise.textContent = `${noise}%`;
+    sliderRadius.value = radius;
+    valRadius.textContent = `${radius.toFixed(1)}x`;
 
     modeTitle.textContent = p.title;
     modeIcon.textContent = p.icon;
@@ -162,6 +174,7 @@
     sim.setSpeed(p.speed);
     sim.setFreqSpread(spread / 100);
     sim.setNoiseLevel(noise / 100);
+    sim.setRadiusMultiplier(radius);
     audio.setVoiceScale(p.n);
 
     // バッジに個体数と格子次元 (Cols x Rows) を明示
@@ -249,6 +262,13 @@
     const val = parseInt(e.target.value, 10);
     valNoise.textContent = `${val}%`;
     sim.setNoiseLevel(val / 100);
+    presetButtons.forEach(b => b.classList.remove('active'));
+  });
+
+  sliderRadius.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    valRadius.textContent = `${val.toFixed(1)}x`;
+    sim.setRadiusMultiplier(val);
     presetButtons.forEach(b => b.classList.remove('active'));
   });
 

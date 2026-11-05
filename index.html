@@ -128,6 +128,19 @@
         </div>
       </div>
 
+      <!-- 結合範囲 (格子間隔の倍率) -->
+      <div class="control-row">
+        <div class="control-label" title="相互作用が届く有効半径（格子間隔の何倍か：1.0x=最近傍のみ 〜 6.0x=広域全結合）">
+          <span>結合範囲 (半径)</span>
+          <span id="val-radius" class="val-badge">1.8x</span>
+        </div>
+        <div class="slider-with-tags">
+          <span class="slider-tag left">局所 (1.0x)</span>
+          <input type="range" id="slider-radius" min="1.0" max="6.0" step="0.2" value="1.8">
+          <span class="slider-tag right">広域 (6.0x)</span>
+        </div>
+      </div>
+
       <!-- アクションボタン群 -->
       <div class="action-buttons">
         <button id="btn-perturb" class="btn-secondary" title="突風を起こして位相をかき乱します">
