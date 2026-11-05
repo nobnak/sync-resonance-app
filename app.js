@@ -29,6 +29,7 @@
   const btnPerturb = document.getElementById('btn-perturb');
   const btnMute = document.getElementById('btn-mute');
   const btnInfo = document.getElementById('btn-info');
+  const btnToggleHud = document.getElementById('btn-toggle-hud');
   const infoDrawer = document.getElementById('info-drawer');
   const btnCloseInfo = document.getElementById('btn-close-info');
 
@@ -198,6 +199,17 @@
   btnCloseInfo.addEventListener('click', () => {
     infoDrawer.classList.add('hidden');
   });
+
+  // HUD最小化・展開トグル
+  let isHudCollapsed = false;
+  if (btnToggleHud) {
+    btnToggleHud.addEventListener('click', () => {
+      isHudCollapsed = !isHudCollapsed;
+      hud.classList.toggle('collapsed', isHudCollapsed);
+      btnToggleHud.textContent = isHudCollapsed ? '🔽' : '🔼';
+      sim.setHudCollapsed(isHudCollapsed);
+    });
+  }
 
   // マウス・タッチ操作（キャンバスのインタラクション：ノード刺激または水面波紋）
   function getCanvasPos(e) {

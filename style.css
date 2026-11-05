@@ -199,6 +199,17 @@ html, body {
   pointer-events: none;
 }
 
+.hud-container.collapsed {
+  padding: 10px 16px;
+  gap: 0;
+}
+
+.hud-container.collapsed .presets-strip,
+.hud-container.collapsed .controls-grid,
+.hud-container.collapsed .hud-actions {
+  display: none;
+}
+
 .hud-header {
   display: flex;
   align-items: center;

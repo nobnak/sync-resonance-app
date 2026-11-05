@@ -17,15 +17,22 @@ class Renderer {
   resize() {
     const dpr = window.devicePixelRatio || 1;
     const rect = this.canvas.getBoundingClientRect();
-    this.canvas.width = rect.width * dpr;
-    this.canvas.height = rect.height * dpr;
-    this.ctx.scale(dpr, dpr);
-    this.width = rect.width;
-    this.height = rect.height;
+    const w = Math.round(rect.width || window.innerWidth || 800);
+    const h = Math.round(rect.height || window.innerHeight || 600);
 
-    // 格子位置を画面サイズに追従
-    if (this.sim && this.sim.updateAgentPositions) {
-      this.sim.updateAgentPositions();
+    // 物理ピクセル解像度のバッファ設定
+    this.canvas.width = Math.round(w * dpr);
+    this.canvas.height = Math.round(h * dpr);
+
+    // 累積変形を防ぎ、論理ピクセル (w, h) への自動スケーリングをセット
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    this.width = w;
+    this.height = h;
+
+    // シミュレーション側へ論理ピクセルサイズを通知して格子を再計算
+    if (this.sim && this.sim.setSize) {
+      this.sim.setSize(w, h);
     }
   }
 

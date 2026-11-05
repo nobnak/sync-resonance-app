@@ -27,44 +27,66 @@ class SimulationEngine {
     this.orderParameter = 0.0;
     this.meanPhase = 0.0;
 
+    // 論理画面サイズ (CSSピクセル単位)
+    const rect = canvas && canvas.getBoundingClientRect ? canvas.getBoundingClientRect() : null;
+    this.width = (rect && rect.width > 0) ? rect.width : (window.innerWidth || 800);
+    this.height = (rect && rect.height > 0) ? rect.height : (window.innerHeight || 600);
+    this.isHudCollapsed = false;
+
     this.initAgents();
+  }
+
+  /**
+   * レンダラー側から論理サイズ（CSSピクセル）をセット
+   */
+  setSize(w, h) {
+    if (!w || !h || (w === this.width && h === this.height)) return;
+    this.width = w;
+    this.height = h;
+    this.updateAgentPositions();
+  }
+
+  setHudCollapsed(collapsed) {
+    this.isHudCollapsed = collapsed;
+    this.updateAgentPositions();
   }
 
   /**
    * 個体数 N と画面アスペクト比に応じた最適な格子 (Cols x Rows) を算出
    */
   calculateGridLayout() {
-    const width = this.canvas.width || 800;
-    const height = this.canvas.height || 600;
+    const w = this.width;
+    const h = this.height;
     const n = this.agentCount;
+    const isPortrait = w < h;
 
     let cols, rows;
     if (n <= 3) {
-      cols = n;
-      rows = 1;
+      cols = isPortrait ? 1 : n;
+      rows = isPortrait ? n : 1;
     } else if (n === 4) {
       cols = 2;
       rows = 2;
     } else if (n <= 6) {
-      cols = 3;
-      rows = 2;
+      cols = isPortrait ? 2 : 3;
+      rows = isPortrait ? 3 : 2;
     } else if (n <= 9) {
       cols = 3;
       rows = 3;
     } else if (n <= 12) {
-      cols = 4;
-      rows = 3;
+      cols = isPortrait ? 3 : 4;
+      rows = isPortrait ? 4 : 3;
     } else if (n <= 16) {
       cols = 4;
       rows = 4;
     } else if (n <= 20) {
-      cols = 5;
-      rows = 4;
+      cols = isPortrait ? 4 : 5;
+      rows = isPortrait ? 5 : 4;
     } else if (n <= 25) {
       cols = 5;
       rows = 5;
     } else {
-      cols = Math.ceil(Math.sqrt(n * (width / height)));
+      cols = Math.ceil(Math.sqrt(n * (w / h)));
       cols = Math.max(1, Math.min(n, cols));
       rows = Math.ceil(n / cols);
     }
@@ -72,11 +94,11 @@ class SimulationEngine {
   }
 
   /**
-   * 格子座標の計算と固定配置（リサイズ時にも呼び出し）
+   * 格子座標の計算と固定配置（論理サイズ基準）
    */
   updateAgentPositions() {
-    const width = this.canvas.width || 800;
-    const height = this.canvas.height || 600;
+    const w = this.width;
+    const h = this.height;
     const n = this.agents.length;
     if (n === 0) return;
 
@@ -84,11 +106,20 @@ class SimulationEngine {
     this.gridCols = cols;
     this.gridRows = rows;
 
-    // HUD や余白を考慮した配置領域
-    const padX = Math.min(180, width * 0.16);
-    const padY = Math.min(140, height * 0.18);
-    const usableW = Math.max(100, width - padX * 2);
-    const usableH = Math.max(100, height - padY * 2);
+    // HUD の高さを考慮した安全な上部余白と周囲マージン
+    const isNarrow = w < 600;
+    let padTop;
+    if (this.isHudCollapsed) {
+      padTop = isNarrow ? 90 : 100;
+    } else {
+      // HUD が展開されているとき（約180〜220px）、HUDの下部に均等に配置
+      padTop = isNarrow ? 260 : (h > 650 ? 230 : 170);
+    }
+    const padBottom = isNarrow ? 40 : 60;
+    const padX = isNarrow ? 36 : Math.max(60, w * 0.12);
+
+    const usableW = Math.max(80, w - padX * 2);
+    const usableH = Math.max(80, h - padTop - padBottom);
 
     const spacingX = cols > 1 ? usableW / (cols - 1) : 0;
     const spacingY = rows > 1 ? usableH / (rows - 1) : 0;
@@ -98,27 +129,23 @@ class SimulationEngine {
       const r = Math.floor(i / cols);
       const c = i % cols;
 
-      // 最終行が余る場合のセンタリング調整
       const itemsInRow = Math.min(cols, n - r * cols);
       const rowStartX = cols > 1
         ? padX + (cols - itemsInRow) * spacingX * 0.5
-        : width / 2;
+        : w / 2;
 
       a.row = r;
       a.col = c;
-      a.x = cols > 1 ? rowStartX + c * spacingX : width / 2;
-      a.y = rows > 1 ? padY + r * spacingY : height / 2;
-      a.pan = (a.x / width) * 2 - 1; // 空間定位（固定ステレオステージング）
+      a.x = cols > 1 ? rowStartX + c * spacingX : w / 2;
+      a.y = rows > 1 ? padTop + r * spacingY : padTop + usableH * 0.5;
+      a.pan = (a.x / w) * 2 - 1; // 空間定位（[-1, +1] のステレオステージング）
     }
   }
 
   initAgents() {
     this.agents = [];
     for (let i = 0; i < this.agentCount; i++) {
-      // 初期位相はランダムに均一分散
       const phase = Math.random() * Math.PI * 2;
-      
-      // 固有角速度にわずかな個体差（自然なゆらぎ ±4%）を付与
       const freqVariance = (Math.random() - 0.5) * 0.08;
       const omega = this.baseOmega * (1.0 + freqVariance);
 
@@ -164,14 +191,11 @@ class SimulationEngine {
 
     const targetType = this.k >= 0 ? Math.min(1.0, 0.5 + this.k * 0.5) : Math.max(0.0, 0.5 + this.k * 0.5);
 
-    // 格子間隔に基づく局所有効半径の算出
-    const width = this.canvas.width || 800;
-    const height = this.canvas.height || 600;
-    const diag = Math.hypot(width, height);
+    // 論理画面サイズ基準で有効半径を算出
+    const diag = Math.hypot(this.width, this.height);
     const rThreshold = this.spatialRadius * diag;
 
     // 1. 各格子点に対する結合相互作用の計算
-    // dθ_i/dt = ω_i + (K / N) * Σ_j W(d_ij) * sin(θ_j - θ_i)
     const dPhases = new Float32Array(n);
 
     for (let i = 0; i < n; i++) {
@@ -184,7 +208,6 @@ class SimulationEngine {
         const a2 = this.agents[j];
         const dist = Math.hypot(a1.x - a2.x, a1.y - a2.y);
 
-        // 格子上の距離減衰カーネル: 1 / (1 + (d / R)^2)
         const normalizedDist = dist / (rThreshold * 0.45);
         const spatialWeight = 1.0 / (1.0 + normalizedDist * normalizedDist);
 
@@ -196,13 +219,12 @@ class SimulationEngine {
       dPhases[i] = a1.omega * this.baseSpeed + this.k * 1.6 * effCoupling;
     }
 
-    // 2. 位相の前進とパルストリガー判定（位置は格子上に固定）
+    // 2. 位相の前進とパルストリガー判定
     for (let i = 0; i < n; i++) {
       const a = this.agents[i];
       a.phase += dPhases[i] * dt;
       a.typeWeight += (targetType - a.typeWeight) * 0.08;
 
-      // 周期 2π 跨ぎで発声・発光パルスを発火
       if (a.phase >= Math.PI * 2) {
         a.phase = a.phase % (Math.PI * 2);
         a.flashTimer = 1.0;
@@ -211,7 +233,6 @@ class SimulationEngine {
           this.onPulseCallback(a, 1.0);
         }
 
-        // 格子点からの波紋発生
         this.ripples.push({
           x: a.x,
           y: a.y,
@@ -222,7 +243,6 @@ class SimulationEngine {
         });
       }
 
-      // 発光タイマー減衰
       if (a.flashTimer > 0) {
         a.flashTimer = Math.max(0, a.flashTimer - dt * (a.typeWeight > 0.5 ? 1.5 : 4.0));
       }
@@ -254,7 +274,6 @@ class SimulationEngine {
    */
   perturbAgent(agent) {
     if (!agent) return;
-    // 位相を大きく反転/シフトし、パルスを発火
     agent.phase = (agent.phase + Math.PI) % (Math.PI * 2);
     agent.flashTimer = 1.0;
 
@@ -262,7 +281,6 @@ class SimulationEngine {
       this.onPulseCallback(agent, 1.2);
     }
 
-    // 刺激点からの衝撃波紋
     this.ripples.push({
       x: agent.x,
       y: agent.y,
@@ -273,7 +291,6 @@ class SimulationEngine {
       isShockwave: true
     });
 
-    // 隣接格子ノードへの位相伝播・外乱
     const shockRadius = 220;
     this.agents.forEach(other => {
       if (other === agent) return;
@@ -309,30 +326,22 @@ class SimulationEngine {
     });
   }
 
-  /**
-   * 全体外乱（突風・一括リセット）
-   */
   perturbAll() {
     this.agents.forEach(a => {
       a.phase = Math.random() * Math.PI * 2;
     });
 
-    const w = this.canvas.width;
-    const h = this.canvas.height;
     this.ripples.push({
-      x: w / 2,
-      y: h / 2,
+      x: this.width / 2,
+      y: this.height / 2,
       radius: 10,
-      maxRadius: Math.hypot(w, h) / 2,
+      maxRadius: Math.hypot(this.width, this.height) / 2,
       opacity: 1.0,
       type: 0.5,
       isShockwave: true
     });
   }
 
-  /**
-   * クリック位置にある格子ノードを検索
-   */
   findAgentAt(x, y, radius = 30) {
     for (let i = 0; i < this.agents.length; i++) {
       const a = this.agents[i];
