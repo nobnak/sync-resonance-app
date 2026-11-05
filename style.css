@@ -202,11 +202,11 @@ html, body {
 .hud-container.collapsed {
   padding: 10px 16px;
   gap: 0;
+  max-width: 560px;
 }
 
 .hud-container.collapsed .presets-strip,
-.hud-container.collapsed .controls-grid,
-.hud-container.collapsed .hud-actions {
+.hud-container.collapsed .controls-panel {
   display: none;
 }
 

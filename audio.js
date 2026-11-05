@@ -58,6 +58,7 @@ class AudioEngine {
     // マスターゲイン
     this.masterGain = this.ctx.createGain();
     this.masterGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
+    this.voiceGainScale = 1.0;
 
     // 手続き型リバーブ（水辺・夜の空間の広がり）
     this.reverbNode = this.createProceduralReverb(2.2, 2.8);
@@ -85,6 +86,10 @@ class AudioEngine {
       this.masterGain.gain.cancelScheduledValues(now);
       this.masterGain.gain.setTargetAtTime(mute ? 0 : 0.85, now, 0.05);
     }
+  }
+
+  setVoiceScale(agentCount) {
+    this.voiceGainScale = Math.min(1.0, Math.sqrt(16 / Math.max(1, agentCount)));
   }
 
   /**
@@ -134,13 +139,14 @@ class AudioEngine {
 
     // typeWeight: 0.0=純粋なカエル, 1.0=純粋なホタル
     const type = agent.typeWeight !== undefined ? agent.typeWeight : 1.0;
+    const voiceScale = this.voiceGainScale || 1.0;
 
     if (type >= 0.5) {
       // ホタルの音色（ウォーム・チャイム／ローズ・ベル調）
-      this.playFireflyTone(agent, now, panner, intensity, (type - 0.5) * 2);
+      this.playFireflyTone(agent, now, panner, intensity * voiceScale, (type - 0.5) * 2);
     } else {
       // カエルの音色（ウッドブロック／マリンバ／水滴調パーカッション）
-      this.playFrogTone(agent, now, panner, intensity, (0.5 - type) * 2);
+      this.playFrogTone(agent, now, panner, intensity * voiceScale, (0.5 - type) * 2);
     }
   }
 

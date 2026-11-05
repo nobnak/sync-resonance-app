@@ -66,11 +66,12 @@
 
     <!-- プリセットセレクター -->
     <div class="presets-strip">
-      <button class="preset-btn active" data-preset="firefly">✨ ホタルの同期 (12匹)</button>
-      <button class="preset-btn" data-preset="frog-duet">🐸 カエルの掛け合い (2匹)</button>
-      <button class="preset-btn" data-preset="frog-poly">🐸 カエルの輪唱 (4匹)</button>
+      <button class="preset-btn active" data-preset="firefly-swarm">✨ ホタルの群生 (36匹)</button>
+      <button class="preset-btn" data-preset="firefly-mega">🌌 百景・大同期 (100匹)</button>
+      <button class="preset-btn" data-preset="frog-chorus">🐸 カエル大合唱 (36匹)</button>
+      <button class="preset-btn" data-preset="frog-poly">🐸 カエル輪唱 (4匹)</button>
       <button class="preset-btn" data-preset="reich">⏱️ フェージング (Reich)</button>
-      <button class="preset-btn" data-preset="chaos">🌀 完全カオス (K=0)</button>
+      <button class="preset-btn" data-preset="chaos">🌀 カオス群生 (64匹)</button>
     </div>
 
     <!-- パラメータコントロール -->
@@ -88,14 +89,14 @@
         </div>
       </div>
 
-      <!-- 個体数 (N: 2 〜 32) -->
+      <!-- 個体数 (N: 2 〜 256) -->
       <div class="control-row inline-row">
         <div class="control-col">
           <div class="control-label">
             <span>個体数 ($N$)</span>
-            <span id="val-n" class="val-badge">12</span>
+            <span id="val-n" class="val-badge">36</span>
           </div>
-          <input type="range" id="slider-n" min="2" max="32" step="1" value="12">
+          <input type="range" id="slider-n" min="2" max="256" step="1" value="36">
         </div>
 
         <!-- テンポ (BPM / 周期) -->

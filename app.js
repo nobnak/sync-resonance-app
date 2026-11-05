@@ -47,43 +47,51 @@
 
   // プリセット定義
   const PRESETS = {
-    'firefly': {
+    'firefly-swarm': {
       k: 0.85,
-      n: 12,
+      n: 36,
       speed: 1.0,
-      title: 'ホタルの同期',
+      title: 'ホタルの群生 (36匹)',
       icon: '✨',
-      desc: '引力結合 (K > 0)：カオスから壮大な斉唱コードへの収斂'
+      desc: '引力結合 (6x6)：カオスから壮大な斉唱コードへの収斂'
     },
-    'frog-duet': {
-      k: -1.2,
-      n: 2,
-      speed: 1.1,
-      title: 'カエルの掛け合い (2匹)',
+    'firefly-mega': {
+      k: 0.9,
+      n: 100,
+      speed: 1.0,
+      title: '百景・大同期 (100匹)',
+      icon: '🌌',
+      desc: '大規模引力結合 (10x10)：格子全体をうねる壮大な光と音の波面伝播'
+    },
+    'frog-chorus': {
+      k: -1.15,
+      n: 36,
+      speed: 1.15,
+      title: 'カエル大合唱 (36匹)',
       icon: '🐸',
-      desc: '完全逆相 (位相差 180°)：衝突を避けた交代発声 (A-B-A-B)'
+      desc: '大規模逆相排他：チェッカーボード状の千鳥発火と重層ポリリズム'
     },
     'frog-poly': {
       k: -1.05,
       n: 4,
       speed: 1.25,
-      title: 'カエルの輪唱 (4匹)',
+      title: 'カエル輪唱 (4匹)',
       icon: '🐸',
       desc: '四位相分散：ガムラン調のインターロッキング・ポリリズム'
     },
     'reich': {
       k: 0.12,
-      n: 3,
-      speed: 1.4,
-      title: 'スティーヴ・ライヒ（フェージング）',
+      n: 9,
+      speed: 1.3,
+      title: 'フェージング (Reich 9点)',
       icon: '⏱️',
       desc: '極小結合 (K ≒ 0.1)：微細な速度差によるミニマル音楽的フェーズシフト'
     },
     'chaos': {
       k: 0.0,
-      n: 16,
+      n: 64,
       speed: 1.0,
-      title: '完全カオス (非結合)',
+      title: 'カオス群生 (64点)',
       icon: '🌀',
       desc: '結合なし (K = 0)：それぞれが独立して鳴り続ける無秩序なアンビエント'
     }
@@ -109,6 +117,7 @@
     sim.setCoupling(p.k);
     sim.setAgentCount(p.n);
     sim.setSpeed(p.speed);
+    audio.setVoiceScale(p.n);
 
     // ボタンのアクティブ状態
     presetButtons.forEach(btn => {
@@ -145,7 +154,7 @@
     startOverlay.classList.add('hidden');
     hud.classList.remove('hidden');
     // 初期プリセットの適用
-    applyPreset('firefly');
+    applyPreset('firefly-swarm');
   });
 
   // プリセットボタンのイベント
@@ -169,6 +178,7 @@
     const n = parseInt(e.target.value, 10);
     valN.textContent = n;
     sim.setAgentCount(n);
+    audio.setVoiceScale(n);
     presetButtons.forEach(b => b.classList.remove('active'));
   });
 
