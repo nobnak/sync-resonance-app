@@ -18,6 +18,7 @@ class SimulationEngine {
     this.radiusMultiplier = 1.8; // 格子間隔の何倍まで結合が届くか (1.0x〜6.0x)
     this.freqSpread = 0.08;   // 固有角速度のばらつき幅 (0.0:均一 〜 0.30:強い個性)
     this.noiseLevel = 0.04;   // 毎フレームの生体ランダムゆらぎ (0.0:静的 〜 0.20:激しい混沌)
+    this.simTime = 0.0;       // シミュレーション累積時間（大気の波・低周波ゆらぎ用）
 
     // 格子情報
     this.gridCols = 6;
@@ -197,6 +198,9 @@ class SimulationEngine {
 
     this.framePulseCount = 0;
     const targetType = this.k >= 0 ? Math.min(1.0, 0.5 + this.k * 0.5) : Math.max(0.0, 0.5 + this.k * 0.5);
+    this.simTime += dt * this.baseSpeed;
+    const time = this.simTime;
+    const windScale = this.noiseLevel * 4.2;
 
     // 格子間隔と倍率に基づく局所有効半径の算出
     const rRef = Math.max(this.cellSpacing * this.radiusMultiplier, 30);
@@ -225,19 +229,26 @@ class SimulationEngine {
       }
 
       const effCoupling = weightSum > 0 ? (couplingSum / weightSum) : 0;
+      // 大気の波（空間相関のある低周波ゆらぎ）：大数の法則によるノイズ相殺を打破し、秩序度が有機的に呼吸・変動する
+      const wind = windScale > 0
+        ? (Math.sin(time * 0.45 + a1.x * 0.005 + a1.y * 0.003) * 0.55 +
+           Math.cos(time * 0.32 - a1.x * 0.004 + a1.y * 0.006) * 0.45) * windScale
+        : 0;
+      const effOmega = a1.omega * (1.0 + wind);
       // 時間伸縮の不変性（テンポ変化で周波数と結合強度の比率が変わらないよう baseSpeed を全体に均等適用）
-      dPhases[i] = (a1.omega + this.k * 1.6 * effCoupling) * this.baseSpeed;
+      dPhases[i] = (effOmega + this.k * 1.6 * effCoupling) * this.baseSpeed;
     }
 
     // 2. 位相の前進とパルストリガー判定
     const maxRipples = n > 64 ? 16 : 28;
-    const noiseAmp = this.noiseLevel * 4.5 * this.baseSpeed;
 
     for (let i = 0; i < n; i++) {
       const a = this.agents[i];
-      // 生体ゆらぎ（Langevinノイズ項）：固定ロックの硬直を打破し息づくような生きた揺らぎを維持
-      const noise = noiseAmp > 0 ? (Math.random() - 0.5) * noiseAmp : 0;
-      a.phase += (dPhases[i] + noise) * dt;
+      // 個体ごとの微細な生体ゆらぎ（Euler-Maruyama sqrt(dt) スケーリング）
+      const microNoise = this.noiseLevel > 0
+        ? (Math.random() - 0.5) * this.noiseLevel * 2.0 * Math.sqrt(dt) * this.baseSpeed
+        : 0;
+      a.phase += dPhases[i] * dt + microNoise;
       a.typeWeight += (targetType - a.typeWeight) * 0.08;
 
       if (a.phase >= Math.PI * 2) {

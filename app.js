@@ -74,26 +74,26 @@
   // プリセット定義
   const PRESETS = {
     'firefly-swarm': {
-      k: 0.32,
+      k: 0.36,
       n: 36,
       speed: 1.0,
-      spread: 12,
-      noise: 6,
+      spread: 10,
+      noise: 5,
       radius: 1.8,
       title: 'ホタルの群生 (36匹)',
       icon: '✨',
-      desc: '引力結合 (6x6)：秩序度80%前後を有機的に揺らぎながら息づく光と音の斉唱'
+      desc: '引力結合 (6x6)：大気の風を受けて秩序度75%〜95%を呼吸するようにうねる斉唱'
     },
     'firefly-mega': {
-      k: 0.28,
+      k: 0.35,
       n: 100,
       speed: 1.0,
-      spread: 12,
-      noise: 6,
-      radius: 1.5,
+      spread: 10,
+      noise: 5,
+      radius: 1.6,
       title: '百景・大同期 (100匹)',
       icon: '🌌',
-      desc: '大規模引力結合 (10x10)：格子全体をうねる壮大な光と音の波面伝播'
+      desc: '大規模引力結合 (10x10)：大気の波によって光と音のさざ波が格子内を巡る壮大な波面伝播'
     },
     'frog-chorus': {
       k: -1.15,
