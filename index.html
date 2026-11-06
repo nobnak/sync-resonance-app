@@ -80,11 +80,11 @@
       <div class="control-row">
         <div class="control-label">
           <span>結合強度 ($K$)</span>
-          <span id="val-k" class="val-badge">+0.80</span>
+          <span id="val-k" class="val-badge">+0.32</span>
         </div>
         <div class="slider-with-tags">
           <span class="slider-tag left">🐸 斥力 (-1)</span>
-          <input type="range" id="slider-k" min="-1.5" max="1.5" step="0.05" value="0.80">
+          <input type="range" id="slider-k" min="-1.5" max="1.5" step="0.05" value="0.32">
           <span class="slider-tag right">引力 (+1) ✨</span>
         </div>
       </div>
@@ -114,17 +114,17 @@
         <div class="control-col">
           <div class="control-label" title="個体ごとの固有周期のばらつき（0%:均一 〜 30%:強い個性）">
             <span>固有差 ($\Delta\omega$)</span>
-            <span id="val-spread" class="val-badge">±8%</span>
+            <span id="val-spread" class="val-badge">±12%</span>
           </div>
-          <input type="range" id="slider-spread" min="0" max="30" step="1" value="8">
+          <input type="range" id="slider-spread" min="0" max="30" step="1" value="12">
         </div>
 
         <div class="control-col">
           <div class="control-label" title="毎フレーム加わるランダムな生体ゆらぎ（完全固着を防ぎ有機的な揺らぎを生む）">
             <span>ゆらぎ (Noise)</span>
-            <span id="val-noise" class="val-badge">4%</span>
+            <span id="val-noise" class="val-badge">6%</span>
           </div>
-          <input type="range" id="slider-noise" min="0" max="20" step="1" value="4">
+          <input type="range" id="slider-noise" min="0" max="20" step="1" value="6">
         </div>
       </div>
 
